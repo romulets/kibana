@@ -75,15 +75,17 @@ export const useInitEntityEngineMutation = (options?: UseMutationOptions<{}>) =>
   const { telemetry } = useKibana().services;
   const invalidateEntityEngineStatusQuery = useInvalidateEntityEngineStatusQuery();
   const { initEntityStore } = useEntityStoreRoutes();
-  return useMutation<InitEntityEngineResponse[]>(
+  // return useMutation<InitEntityEngineResponse[]>(
+  return useMutation(
     () => {
       telemetry?.reportEvent(EntityEventTypes.EntityStoreEnablementToggleClicked, {
         timestamp: new Date().toISOString(),
         action: 'start',
       });
-      return initEntityStore('user').then((usr) =>
-        initEntityStore('host').then((host) => [usr, host])
-      );
+      return initEntityStore('related');
+      // .then((usr) =>
+      //   initEntityStore('host').then((host) => [usr, host])
+      // );
     },
     {
       ...options,
