@@ -82,10 +82,7 @@ export const useInitEntityEngineMutation = (options?: UseMutationOptions<{}>) =>
         timestamp: new Date().toISOString(),
         action: 'start',
       });
-      return initEntityStore('related');
-      // .then((usr) =>
-      //   initEntityStore('host').then((host) => [usr, host])
-      // );
+      return initEntityStore('universal');
     },
     {
       ...options,
