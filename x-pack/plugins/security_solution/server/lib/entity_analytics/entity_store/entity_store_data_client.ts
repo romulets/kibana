@@ -301,7 +301,7 @@ export class EntityStoreDataClient {
         logger,
       });
       this.log(`debug`, entityType, `Executed field retention enrich policy`);
-      
+
       await createPlatformPipeline({
         debugMode: pipelineDebugMode,
         unitedDefinition,
@@ -309,7 +309,7 @@ export class EntityStoreDataClient {
         esClient: this.esClient,
       });
       this.log(`debug`, entityType, `Created @platform pipeline`);
-      
+
       await createKeywordBuilderPipeline({
         debugMode: pipelineDebugMode,
         logger,
