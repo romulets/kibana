@@ -726,7 +726,7 @@ describe('RemoteLogsExtractionClient', () => {
       // an exact doc count.
       expect(mockLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining(
-          `log-slice probe stalled at ${stalledTs} with a saturated page; advancing cursor by 1ms.`
+          `log-slice probe stalled at ${stalledTs} with a saturated page; advancing cursor by 1ms. Docs sharing this timestamp beyond the configured per-page limit (${DEFAULT_MAX_LOGS_PER_PAGE}) will be dropped.`
         )
       );
       // The outer loop persists the bumped value as checkpointTimestamp after the stalled slice.
@@ -833,6 +833,24 @@ describe('RemoteLogsExtractionClient', () => {
       // pickSampleProbability(20) = 1 (20 <= LOG_EXTRACTION_SAMPLE_MIN_RETAINED / 1 threshold)
       expect(probeQuery).not.toContain('SAMPLE');
       expect(probeQuery).toContain('| LIMIT 20');
+    });
+
+    it('does not run a sweep extraction when an exact (unsampled) probe finds nothing', async () => {
+      // maxLogsPerPage=20 → pickSampleProbability(20)=1: too small for sampling to help, so
+      // the probe is exact. An empty result from an exact probe is definitive (no real docs can
+      // be missed the way a sampled probe can miss them), so the loop should stop immediately
+      // instead of running a redundant sweep extraction.
+      mockExecuteEsqlQuery.mockResolvedValueOnce(emptyProbeResponse);
+
+      const result = await client.extractToUpdates({ ...defaultExtractParams, maxLogsPerPage: 20 });
+
+      expect(result).toEqual({ count: 0, pages: 0 });
+      // Only the single (empty) probe call — no follow-up sweep extraction.
+      expect(mockExecuteEsqlQuery).toHaveBeenCalledTimes(1);
+      expect(mockIngestEntities).not.toHaveBeenCalled();
+      expect(mockStateClient.clearRecoveryId).toHaveBeenCalledWith('host');
+      // No slice-end was ever swept/persisted, unlike the sampled-probe case.
+      expect(mockStateClient.update).not.toHaveBeenCalled();
     });
   });
 

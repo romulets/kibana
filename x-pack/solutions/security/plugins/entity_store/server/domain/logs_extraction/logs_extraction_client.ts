@@ -616,6 +616,13 @@ export class LogsExtractionClient {
           opts,
         });
 
+        if (!probe.hasLogsToProcess && effectiveSampleProbability >= 1) {
+          // Sampling wasn't active for this probe (maxLogsPerPage was too small — see
+          // pickSampleProbability), so an empty, exact result is definitive: no real docs
+          // remain. Stop immediately rather than running a redundant sweep extraction.
+          break;
+        }
+
         lastLogsPages = probe.isLastLogsPage;
 
         let logsPageCursorEnd: LogSlicePaginationParams;
@@ -634,7 +641,8 @@ export class LogsExtractionClient {
         const bumpedCursorEnd = this.detectLogSliceStall(
           logsPageCursorStart,
           logsPageCursorEnd,
-          !lastLogsPages
+          !lastLogsPages,
+          effectiveMaxLogsPerPage
         );
         if (bumpedCursorEnd) {
           logsPageCursorEnd = bumpedCursorEnd;
@@ -907,12 +915,13 @@ export class LogsExtractionClient {
   private detectLogSliceStall(
     sliceStart: LogSlicePaginationParams | undefined,
     sliceEnd: LogSlicePaginationParams,
-    isFullPage: boolean
+    isFullPage: boolean,
+    effectiveMaxLogsPerPage: number
   ): LogSlicePaginationParams | null {
     if (sliceStart && sliceStart.timestampCursor === sliceEnd.timestampCursor && isFullPage) {
       const bumpedTs = moment(sliceEnd.timestampCursor).add(1, 'ms').toISOString();
       this.logger.warn(
-        `Log-slice probe stalled at ${sliceEnd.timestampCursor} with a saturated page; advancing cursor by 1ms. Docs sharing this timestamp beyond maxLogsPerPage will be dropped.`
+        `Log-slice probe stalled at ${sliceEnd.timestampCursor} with a saturated page; advancing cursor by 1ms. Docs sharing this timestamp beyond the configured per-page limit (${effectiveMaxLogsPerPage}) will be dropped.`
       );
       return { timestampCursor: bumpedTs };
     }

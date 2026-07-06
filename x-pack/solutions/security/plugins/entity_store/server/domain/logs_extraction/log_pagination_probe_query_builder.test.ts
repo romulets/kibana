@@ -13,8 +13,20 @@ import {
   buildLogPaginationCursorProbeEsql,
   interpretLogPaginationCursorRows,
   parseLogPaginationCursorRow,
+  roundSampleProbability,
   scaledProbeLimit,
 } from './log_pagination_probe_query_builder';
+
+describe('roundSampleProbability', () => {
+  it('bounds a long floating-point value to 4 decimal places', () => {
+    expect(roundSampleProbability(2500 / 3000)).toBe(0.8333);
+  });
+
+  it('leaves already-clean values unchanged', () => {
+    expect(roundSampleProbability(0.1)).toBe(0.1);
+    expect(roundSampleProbability(1)).toBe(1);
+  });
+});
 
 describe('scaledProbeLimit', () => {
   it('scales maxLogsPerPage by the sample probability, rounding to the nearest integer', () => {
@@ -79,6 +91,19 @@ describe('buildLogPaginationCursorProbeEsql', () => {
     expect(q).not.toContain('SAMPLE');
     // scaledProbeLimit(100, 1) === 100: identical to the original pre-sampling LIMIT.
     expect(q).toContain('| LIMIT 100');
+  });
+
+  it('rounds a long floating-point sampleProbability before embedding it in the query', () => {
+    const q = buildLogPaginationCursorProbeEsql({
+      indexPatterns: ['logs-*'],
+      type: 'user',
+      fromDateISO: '2024-01-01T00:00:00.000Z',
+      toDateISO: '2024-01-02T00:00:00.000Z',
+      maxLogsPerPage: 3000,
+      sampleProbability: 2500 / 3000, // 0.8333333333333334 unrounded
+    });
+    expect(q).toContain('| SAMPLE 0.8333');
+    expect(q).not.toContain('0.8333333333333334');
   });
 });
 

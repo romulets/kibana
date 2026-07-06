@@ -384,6 +384,13 @@ export class RemoteLogsExtractionClient {
         abortController,
       });
 
+      if (!logPaginationCursor.hasLogsToProcess && effectiveSampleProbability >= 1) {
+        // Sampling wasn't active for this probe (maxLogsPerPage was too small — see
+        // pickSampleProbability), so an empty, exact result is definitive: no real docs
+        // remain. Stop immediately rather than running a redundant sweep extraction.
+        break;
+      }
+
       // A saturated probe (the scaled LIMIT was filled) means ~maxLogsPerPage+ real docs likely
       // remain: more pages follow, bounded by the sampled boundary. Otherwise — the sample fell
       // short of the limit, or retained zero rows at all (hasLogsToProcess: false) — fewer real
@@ -397,7 +404,12 @@ export class RemoteLogsExtractionClient {
           ? logPaginationCursor.logsPaginationCursor
           : { timestampCursor: toDateISO };
 
-      const bumpedSliceEnd = this.detectLogSliceStall(sliceStart, sliceEnd, !isLastLogsPage);
+      const bumpedSliceEnd = this.detectLogSliceStall(
+        sliceStart,
+        sliceEnd,
+        !isLastLogsPage,
+        effectiveMaxLogsPerPage
+      );
       if (bumpedSliceEnd) {
         sliceEnd = bumpedSliceEnd;
         entityStoreMetrics.extractionLogsPerPageDropped.add(1, {
@@ -658,14 +670,15 @@ export class RemoteLogsExtractionClient {
   private detectLogSliceStall(
     sliceStart: LogSlicePaginationParams | undefined,
     sliceEnd: LogSlicePaginationParams,
-    isFullPage: boolean
+    isFullPage: boolean,
+    effectiveMaxLogsPerPage: number
   ): LogSlicePaginationParams | null {
     if (sliceStart && sliceStart.timestampCursor === sliceEnd.timestampCursor && isFullPage) {
       const bumpedTs = moment(sliceEnd.timestampCursor).add(1, 'ms').toISOString();
       this.logger.warn(
         `${this.strategy.id.toUpperCase()} log-slice probe stalled at ${
           sliceEnd.timestampCursor
-        } with a saturated page; advancing cursor by 1ms. Docs sharing this timestamp beyond maxLogsPerPage will be dropped.`
+        } with a saturated page; advancing cursor by 1ms. Docs sharing this timestamp beyond the configured per-page limit (${effectiveMaxLogsPerPage}) will be dropped.`
       );
       return { timestampCursor: bumpedTs };
     }

@@ -5,7 +5,10 @@
  * 2.0.
  */
 
-import { LOG_EXTRACTION_SAMPLE_PROBABILITY } from './log_pagination_probe_query_builder';
+import {
+  LOG_EXTRACTION_SAMPLE_PROBABILITY,
+  roundSampleProbability,
+} from './log_pagination_probe_query_builder';
 
 /**
  * Returns the effective per-page log limit: when `maxLogsPerWindow` is active (> 0),
@@ -33,4 +36,5 @@ export const pickSampleProbability = (
   maxLogsPerPage: number,
   targetProbability: number = LOG_EXTRACTION_SAMPLE_PROBABILITY,
   minRetained: number = LOG_EXTRACTION_SAMPLE_MIN_RETAINED
-): number => Math.min(1, Math.max(targetProbability, minRetained / maxLogsPerPage));
+): number =>
+  roundSampleProbability(Math.min(1, Math.max(targetProbability, minRetained / maxLogsPerPage)));

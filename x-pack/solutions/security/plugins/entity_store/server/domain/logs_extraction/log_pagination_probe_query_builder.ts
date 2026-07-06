@@ -18,6 +18,9 @@ export const LOG_PAGINATION_CURSOR_TOTAL_LOGS_FIELD = 'total_logs';
 
 export const LOG_EXTRACTION_SAMPLE_PROBABILITY = 0.1;
 
+export const roundSampleProbability = (sampleProbability: number): number =>
+  Math.round(sampleProbability * 10000) / 10000;
+
 export const scaledProbeLimit = (
   maxLogsPerPage: number,
   sampleProbability: number = LOG_EXTRACTION_SAMPLE_PROBABILITY
@@ -36,9 +39,10 @@ export function buildLogPaginationCursorProbeEsql(
 ): string {
   const {
     maxLogsPerPage,
-    sampleProbability = LOG_EXTRACTION_SAMPLE_PROBABILITY,
+    sampleProbability: rawSampleProbability = LOG_EXTRACTION_SAMPLE_PROBABILITY,
     ...sourceParams
   } = params;
+  const sampleProbability = roundSampleProbability(rawSampleProbability);
   const sampleStage = sampleProbability < 1 ? `\n  | SAMPLE ${sampleProbability}` : '';
   return (
     `${NULLIFY_UNMAPPED_FIELDS_SETTING}\n` +
@@ -111,11 +115,12 @@ export type LogPaginationCursor =
 export function interpretLogPaginationCursorRows(
   row: LogPaginationCursorParsedRow | undefined,
   maxLogsPerPage: number,
-  sampleProbability: number = LOG_EXTRACTION_SAMPLE_PROBABILITY
+  rawSampleProbability: number = LOG_EXTRACTION_SAMPLE_PROBABILITY
 ): LogPaginationCursor {
   if (row === undefined) {
     return { hasLogsToProcess: false, isLastLogsPage: true, sliceLogCount: 0 };
   }
+  const sampleProbability = roundSampleProbability(rawSampleProbability);
   const { logsPaginationCursor, sliceDocCount } = row;
   const scaledLimit = scaledProbeLimit(maxLogsPerPage, sampleProbability);
   return {

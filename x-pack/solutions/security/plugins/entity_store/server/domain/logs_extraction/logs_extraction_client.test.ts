@@ -400,6 +400,44 @@ describe('LogsExtractionClient', () => {
       );
     });
 
+    it('does not run a sweep extraction when an exact (unsampled) probe finds nothing', async () => {
+      // effectiveMaxLogsPerPage=1 (via maxLogsPerWindow=1) → pickSampleProbability(1)=1: too
+      // small for sampling to help, so the probe is exact. An empty result from an exact probe
+      // is definitive (no real docs can be missed the way a sampled probe can miss them), so
+      // the loop should stop immediately instead of running a redundant sweep extraction.
+      mockGlobalStateClient = createMockGlobalStateClient({ maxLogsPerWindow: 1 });
+      client = new LogsExtractionClient({
+        logger: mockLogger,
+        namespace: 'default',
+        esClient: mockEsClient,
+        dataViewsService: mockDataViewsService,
+        engineDescriptorClient: mockEngineDescriptorClient as unknown as EngineDescriptorClient,
+        globalStateClient: mockGlobalStateClient as unknown as EntityStoreGlobalStateClient,
+        remoteLogsExtractionClient:
+          mockRemoteLogsExtractionClient as unknown as RemoteLogsExtractionClient,
+      });
+
+      mockEngineDescriptorClient.findOrThrow.mockResolvedValue(
+        createMockEngineDescriptor('user') as Awaited<
+          ReturnType<EngineDescriptorClient['findOrThrow']>
+        >
+      );
+      mockDataViewsService.get.mockResolvedValue({
+        getIndexPattern: jest.fn().mockReturnValue('logs-*'),
+      } as any);
+      mockExecuteEsqlQuery.mockResolvedValueOnce(mockLogPaginationCursorProbeEmpty());
+
+      const result = await client.extractLogs('user');
+
+      expect(result.success).toBe(true);
+      expect(result.success && result.count).toBe(0);
+      expect(result.success && result.logsProcessed).toBe(0);
+      expect(result.success && result.logsCapApplied).toBe(false);
+      // Only the single (empty) probe call — no follow-up sweep extraction.
+      expect(mockExecuteEsqlQuery).toHaveBeenCalledTimes(1);
+      expect(mockIngestEntities).not.toHaveBeenCalled();
+    });
+
     it('should compute extraction window from lookbackPeriod and delay when no custom range', async () => {
       const fixedNow = new Date('2025-01-15T12:00:00.000Z');
       jest.useFakeTimers({ now: fixedNow.getTime() });
@@ -1296,8 +1334,12 @@ describe('LogsExtractionClient', () => {
 
         expect(result.success).toBe(true);
         expect(mockLogger.warn).toHaveBeenCalledTimes(1);
+        // The message names the concrete effective per-page limit, not the (unavailable in this
+        // scope) raw config variable name.
         expect(mockLogger.warn).toHaveBeenCalledWith(
-          expect.stringContaining(`Log-slice probe stalled at ${stalledTs}`)
+          expect.stringContaining(
+            `Log-slice probe stalled at ${stalledTs} with a saturated page; advancing cursor by 1ms. Docs sharing this timestamp beyond the configured per-page limit (${LOG_EXTRACTION_MAX_LOGS_PER_PAGE_DEFAULT}) will be dropped.`
+          )
         );
         // After the stall bump, a later update persists checkpointTimestamp = bumpedTs.
         const updateCalls = (mockEngineDescriptorClient.update as jest.Mock).mock.calls;

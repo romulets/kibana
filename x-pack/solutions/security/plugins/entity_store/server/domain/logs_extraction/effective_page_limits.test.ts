@@ -56,4 +56,10 @@ describe('pickSampleProbability', () => {
     expect(pickSampleProbability(LOG_EXTRACTION_SAMPLE_MIN_RETAINED)).toBe(1);
     expect(pickSampleProbability(LOG_EXTRACTION_SAMPLE_MIN_RETAINED + 1)).toBeLessThan(1);
   });
+
+  it('rounds the result to 4 decimal places instead of returning a long floating-point literal', () => {
+    // 2500 / 3000 = 0.8333333333333334 unrounded — embedding that raw value in an ES|QL SAMPLE
+    // clause would be unstable/unreadable, so pickSampleProbability bounds it up front.
+    expect(pickSampleProbability(3000)).toBe(0.8333);
+  });
 });
