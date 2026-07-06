@@ -254,10 +254,12 @@ describe('LogsExtractionClient', () => {
       expect(mockEngineDescriptorClient.findOrThrow).toHaveBeenCalledWith('user');
       // probe, extraction, terminal empty probe, and the follow-up sweep extraction it triggers.
       expect(mockExecuteEsqlQuery).toHaveBeenCalledTimes(4);
-      expect(mockExecuteEsqlQuery).toHaveBeenCalledWith({
-        esClient: mockEsClient,
-        query: expect.any(String),
-      });
+      expect(mockExecuteEsqlQuery).toHaveBeenCalledWith(
+        expect.objectContaining({
+          esClient: mockEsClient,
+          query: expect.any(String),
+        })
+      );
 
       // The sweep extraction after the terminal empty probe ingests 0 rows but still calls
       // ingestEntities unconditionally (see ingestEntityPagesWithinCurrentLogPage).
@@ -469,14 +471,18 @@ describe('LogsExtractionClient', () => {
       const expectedFrom = moment.utc(fixedNow).subtract(3, 'hours').toISOString();
       const expectedTo = moment.utc(fixedNow).subtract(5, 'seconds').toISOString();
 
-      expect(mockExecuteEsqlQuery).toHaveBeenCalledWith({
-        esClient: mockEsClient,
-        query: expect.stringContaining(expectedFrom),
-      });
-      expect(mockExecuteEsqlQuery).toHaveBeenCalledWith({
-        esClient: mockEsClient,
-        query: expect.stringContaining(expectedTo),
-      });
+      expect(mockExecuteEsqlQuery).toHaveBeenCalledWith(
+        expect.objectContaining({
+          esClient: mockEsClient,
+          query: expect.stringContaining(expectedFrom),
+        })
+      );
+      expect(mockExecuteEsqlQuery).toHaveBeenCalledWith(
+        expect.objectContaining({
+          esClient: mockEsClient,
+          query: expect.stringContaining(expectedTo),
+        })
+      );
 
       jest.useRealTimers();
     });
@@ -578,14 +584,18 @@ describe('LogsExtractionClient', () => {
 
       const expectedTo = moment.utc(fixedNow).subtract(1, 'minute').toISOString();
 
-      expect(mockExecuteEsqlQuery).toHaveBeenCalledWith({
-        esClient: mockEsClient,
-        query: expect.stringContaining(checkpointTimestamp),
-      });
-      expect(mockExecuteEsqlQuery).toHaveBeenCalledWith({
-        esClient: mockEsClient,
-        query: expect.stringContaining(expectedTo),
-      });
+      expect(mockExecuteEsqlQuery).toHaveBeenCalledWith(
+        expect.objectContaining({
+          esClient: mockEsClient,
+          query: expect.stringContaining(checkpointTimestamp),
+        })
+      );
+      expect(mockExecuteEsqlQuery).toHaveBeenCalledWith(
+        expect.objectContaining({
+          esClient: mockEsClient,
+          query: expect.stringContaining(expectedTo),
+        })
+      );
 
       jest.useRealTimers();
     });
@@ -747,14 +757,18 @@ describe('LogsExtractionClient', () => {
         specificWindow: { fromDateISO: fromDate, toDateISO: toDate },
       });
 
-      expect(mockExecuteEsqlQuery).toHaveBeenCalledWith({
-        esClient: mockEsClient,
-        query: expect.stringContaining(fromDate),
-      });
-      expect(mockExecuteEsqlQuery).toHaveBeenCalledWith({
-        esClient: mockEsClient,
-        query: expect.stringContaining(toDate),
-      });
+      expect(mockExecuteEsqlQuery).toHaveBeenCalledWith(
+        expect.objectContaining({
+          esClient: mockEsClient,
+          query: expect.stringContaining(fromDate),
+        })
+      );
+      expect(mockExecuteEsqlQuery).toHaveBeenCalledWith(
+        expect.objectContaining({
+          esClient: mockEsClient,
+          query: expect.stringContaining(toDate),
+        })
+      );
       expect(mockEngineDescriptorClient.update).not.toHaveBeenCalled();
     });
 

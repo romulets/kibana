@@ -522,6 +522,11 @@ export class RemoteLogsExtractionClient {
       esClient: this.strategy.client,
       query: probeQuery,
       abortController,
+      telemetry: {
+        name: 'remote_probe_query',
+        namespace: this.namespace,
+        type,
+      },
     });
     entityStoreMetrics.extractionProbeQueryDurationMs.record(Date.now() - probeStart, {
       entity_type: type,
@@ -610,6 +615,11 @@ export class RemoteLogsExtractionClient {
         esClient: this.strategy.client,
         query,
         abortController,
+        telemetry: {
+          name: 'remote_extraction_query',
+          namespace: this.namespace,
+          type,
+        },
       });
       entityStoreMetrics.extractionQueryDurationMs.record(Date.now() - queryStart, {
         entity_type: type,

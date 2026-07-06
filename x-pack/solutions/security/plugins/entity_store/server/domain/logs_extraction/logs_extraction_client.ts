@@ -742,6 +742,11 @@ export class LogsExtractionClient {
       esClient: this.esClient,
       query: logPaginationCursorProbeQuery,
       abortController: opts?.abortController,
+      telemetry: {
+        name: 'probe_query',
+        namespace: this.namespace,
+        type,
+      },
     });
     entityStoreMetrics.extractionProbeQueryDurationMs.record(Date.now() - probeStart, {
       entity_type: type,
@@ -838,6 +843,11 @@ export class LogsExtractionClient {
         esClient: this.esClient,
         query,
         abortController: opts?.abortController,
+        telemetry: {
+          name: 'extraction_query',
+          namespace: this.namespace,
+          type,
+        },
       });
       entityStoreMetrics.extractionQueryDurationMs.record(Date.now() - queryStart, {
         entity_type: type,
