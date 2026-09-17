@@ -30,6 +30,7 @@ export const servers: ScoutServerConfig = {
     serverArgs: [
       ...evalsTracingConfig.kbnTestServer.serverArgs,
       '--xpack.alertzero.enabled=true',
+      '--xpack.alertzero.ui.useMockData=false',
       '--xpack.agenticInvestigations.enabled=true',
       '--xpack.inbox.enabled=true',
       '--uiSettings.overrides.workflows:ui:enabled=true',
